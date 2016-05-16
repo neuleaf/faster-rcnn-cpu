@@ -1,2 +1,2 @@
-# Three functions implemented with cpu moe
+# 3 functions implemented with cpu mode
 
