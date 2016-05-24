@@ -132,7 +132,7 @@ void ROIPoolingLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
   // NOT_IMPLEMENTED;
   
-  //*** cpu implemention ***
+  //*** cpu implementation ***
   if(!propagate_down[0]){
   	return;
   }
@@ -172,7 +172,7 @@ void ROIPoolingLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   	}
   	bottom_rois += bottom[1]->offset(1);
   }
-  // ***end cpu implemention ***
+  // ***end cpu implementation ***
   
 }
 
