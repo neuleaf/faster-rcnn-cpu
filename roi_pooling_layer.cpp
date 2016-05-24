@@ -103,6 +103,7 @@ void ROIPoolingLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
           if (is_empty) {
             top_data[pool_index] = 0;
             argmax_data[pool_index] = -1;
+            continue;
           }
 
           for (int h = hstart; h < hend; ++h) {
@@ -131,70 +132,47 @@ void ROIPoolingLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
   // NOT_IMPLEMENTED;
   
-  //*** next all by leaf ***
+  //*** cpu implemention ***
   if(!propagate_down[0]){
   	return;
   }
   const Dtype* bottom_rois = bottom[1]->cpu_data();
   const Dtype* top_diff = top[0]->cpu_diff();
   Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
-  const int nums = bottom[0]->num();
+  const int num_rois = top[0]->num();
+  int batch_size = bottom[0]->num();
   const int count = bottom[0]->count();
-  const int batch_size = bottom[0]->num();
-  caffe_set(count, Dtype(0), bottom_diff);
+  caffe_set(count, Dtype(0.), bottom_diff);
   const int* argmax_data = max_idx_.cpu_data();
   
-  for (int n = 0; n < nums; ++n){
-  	int roi_batch_ind = bottom_rois[0];
-  	CHECK_GE(roi_batch_ind,0);
-  	CHECK_LT(roi_batch_ind, batch_size);
-  	
-  	int roi_start_w = round(bottom_rois[1] * spatial_scale_);
-  	int roi_start_h = round(bottom_rois[2] * spatial_scale_);
-  	int roi_end_w = round(bottom_rois[3] * spatial_scale_);
-  	int roi_end_h = round(bottom_rois[4] * spatial_scale_);
-  	
-  	int roi_height = max(roi_end_h - roi_start_h + 1, 1);
-  	int roi_width = max(roi_end_w - roi_start_w + 1, 1);
-  	
-  	Dtype bin_size_h = static_cast<Dtype>(roi_height)
-  						/ static_cast<Dtype>(pooled_height_);
-  	Dtype bin_size_w = static_cast<Dtype>(roi_width)
-  						/ static_cast<Dtype>(pooled_width_);
-
-  	for(int c = 0; c < channels_; ++c){
-  		for(int h = roi_start_h; h < roi_end_h; ++h){
-  			for(int w =roi_start_w; w< roi_end_w; ++w){
-  				// output index
-  				int index = h * roi_width + roi_width;// check if width_
-  				
-  				// compute outputs' size, phstart, pwstart, phend, pwend**
-  				int phstart = floor(static_cast<Dtype>(h - roi_start_h) / bin_size_h);
-  				int phend = ceil(static_cast<Dtype>(h - roi_start_h + 1) / bin_size_h);
-  				int pwstart = floor(static_cast<Dtype>(w - roi_start_w) / bin_size_w);
-  				int pwend = ceil(static_cast<Dtype>(w - roi_start_w + 1) / bin_size_w);
-  				
-  				phstart = min(max(phstart, 0), pooled_height_);
-  				phend = min(max(phend, 0), pooled_height_);
-  				pwstart = min(max(pwstart, 0), pooled_width_);
-  				pwend = min(max(pwend, 0), pooled_width_);
-  				
-  				for(int ph = phstart; ph < phend; ++ph){
-  					for( int pw = pwstart; pw < pwend; ++ pw){
-  						if(argmax_data[ph * pooled_width_ + pw] == (h *width_ + w)){
-  							bottom_diff[index] += top_diff[ph * pooled_width_ + pw];
-  						}
-  					}
-  				}
+  CHECK_EQ(top[0]->num(), bottom[1]->num())
+  			<< "input output mush have same rois!";
+  			
+  for (int n = 0; n < num_rois; ++n){
+	// batch data diff compreding this roi
+	int roi_batch_idx = bottom_rois[0];
+	CHECK_GE(roi_batch_idx, 0); 
+    CHECK_LT(roi_batch_idx, batch_size); 
+	Dtype* batch_bottom_diff = bottom_diff + bottom[0]->offset(roi_batch_idx);
+	
+  	// gradient
+  	for(int c = 0; c < channels_; ++ c){
+  		for(int ph = 0; ph < pooled_height_; ++ph){
+  			for(int pw = 0; pw < pooled_width_; ++pw){
+          		int index = ph * pooled_width_ + pw;
+          		int bottom_diff_index = argmax_data[index];
+          		if(bottom_diff_index == -1)
+          			continue;
+          		batch_bottom_diff[bottom_diff_index] += top_diff[index];
   			}
   		}
-  		bottom_diff += bottom[0]->offset(0, 1);
+  		batch_bottom_diff += bottom[0]->offset(0, 1);
   		top_diff += top[0]->offset(0, 1);
-  		argmax_data += max_idx_.offset(0, 1);
+  		argmax_data += max_idx_.offset(0, 1);    
   	}
   	bottom_rois += bottom[1]->offset(1);
   }
-  // ***before, all by leaf ***
+  // ***end cpu implemention ***
   
 }
 

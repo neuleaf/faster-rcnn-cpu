@@ -54,6 +54,8 @@ void SmoothL1LossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   //NOT_IMPLEMENTED;
   
   // below, by leaf*********
+  CHECK_EQ(bottom[0]->count(1), bottom[1]->count(1))
+      << "Inputs must have the same dimension.";
   int count = bottom[0]->count();
   caffe_sub(count, 
   			bottom[0]->cpu_data(), 
@@ -82,7 +84,7 @@ void SmoothL1LossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   }
   
   if(has_weights_){
-  	caffe_mul(count, bottom[3]->cpu_data(), errors_.cpu_data(), errors_.mutable_cpu_data());
+  	caffe_mul(count, bottom[3]->cpu_data(), out, errors_.mutable_cpu_data());
   }
   
   // compute loss
@@ -116,8 +118,9 @@ void SmoothL1LossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   		const Dtype sign = (i == 0) ? 1 : -1;
   		const Dtype alpha = sign * top[0]->cpu_diff()[0] / bottom[i]->num();
   		caffe_cpu_axpby(
-  			count, alpha, 
-  			diff_.cpu_data(), 
+  			count, 
+  			alpha, 
+  			out,//diff_.cpu_data(), 
   			Dtype(0), 
   			bottom[i]->mutable_cpu_diff());
   		
